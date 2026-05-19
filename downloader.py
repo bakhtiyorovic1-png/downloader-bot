@@ -21,7 +21,7 @@ def download_video(url: str, output_dir: str = "downloads") -> dict:
 
     ydl_opts = {
         "outtmpl": f"{output_dir}/%(title)s.%(ext)s",
-        "format": "best[ext=mp4]/best",
+        "format": "bestvideo+bestaudio/best/bestvideo/bestaudio",
         "quiet": True,
         "no_warnings": True,
         "merge_output_format": "mp4",
