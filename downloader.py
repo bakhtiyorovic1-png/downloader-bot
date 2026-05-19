@@ -15,25 +15,39 @@ def detect_platform(url: str) -> str:
     else:
         return "unknown"
 
-def get_ydl_opts_base():
-    return {
+def get_ydl_opts_base(platform=""):
+    opts = {
         "quiet": True,
         "no_warnings": True,
-        "extractor_args": {
-            "youtube": {
-                "player_client": ["android_vr", "android", "android_embedded"],
-                "player_skip": ["webpage", "configs"],
-            }
-        },
-        "http_headers": {
-            "User-Agent": "com.google.android.youtube/19.09.37 (Linux; U; Android 11) gzip",
-        },
+        "socket_timeout": 30,
     }
+    if platform == "youtube":
+        opts["extractor_args"] = {
+            "youtube": {
+                "player_client": ["android_vr", "android"],
+                "player_skip": ["webpage"],
+            }
+        }
+        opts["http_headers"] = {
+            "User-Agent": "com.google.android.youtube/19.09.37 (Linux; U; Android 11) gzip",
+        }
+    elif platform == "tiktok":
+        opts["http_headers"] = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Referer": "https://www.tiktok.com/",
+        }
+        opts["extractor_args"] = {
+            "tiktok": {
+                "app_version": "20.9.3",
+                "manifest_app_version": "209",
+            }
+        }
+    return opts
 
 def download_video(url: str, output_dir: str = "downloads") -> dict:
     os.makedirs(output_dir, exist_ok=True)
-
-    opts = get_ydl_opts_base()
+    platform = detect_platform(url)
+    opts = get_ydl_opts_base(platform)
     opts.update({
         "outtmpl": f"{output_dir}/%(title)s.%(ext)s",
         "format": "bestvideo+bestaudio/best/bestvideo/bestaudio",
@@ -50,7 +64,7 @@ def download_video(url: str, output_dir: str = "downloads") -> dict:
                 "success": True,
                 "filepath": filename,
                 "title": info.get("title", "Video"),
-                "platform": detect_platform(url),
+                "platform": platform,
             }
     except Exception as e:
         return {"success": False, "error": str(e)}
@@ -58,8 +72,8 @@ def download_video(url: str, output_dir: str = "downloads") -> dict:
 
 def download_audio(url: str, output_dir: str = "downloads") -> dict:
     os.makedirs(output_dir, exist_ok=True)
-
-    opts = get_ydl_opts_base()
+    platform = detect_platform(url)
+    opts = get_ydl_opts_base(platform)
     opts.update({
         "outtmpl": f"{output_dir}/%(title)s.%(ext)s",
         "format": "bestaudio/best",
@@ -79,7 +93,7 @@ def download_audio(url: str, output_dir: str = "downloads") -> dict:
                 "success": True,
                 "filepath": filename,
                 "title": info.get("title", "Audio"),
-                "platform": detect_platform(url),
+                "platform": platform,
             }
     except Exception as e:
         return {"success": False, "error": str(e)}
