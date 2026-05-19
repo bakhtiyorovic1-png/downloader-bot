@@ -15,9 +15,6 @@ def detect_platform(url: str) -> str:
     else:
         return "unknown"
 
-YOUTUBE_CLIENT_ID = os.getenv("YOUTUBE_CLIENT_ID")
-YOUTUBE_CLIENT_SECRET = os.getenv("YOUTUBE_CLIENT_SECRET")
-
 def get_ydl_opts_base(platform=""):
     opts = {
         "quiet": True,
@@ -25,18 +22,17 @@ def get_ydl_opts_base(platform=""):
         "socket_timeout": 30,
     }
     if platform == "youtube":
-        opts["ap_mso"] = None
-        opts["username"] = "oauth2"
-        opts["password"] = ""
         opts["extractor_args"] = {
             "youtube": {
-                "player_client": ["android_vr", "android"],
-                "player_skip": ["webpage"],
+                "player_client": ["android_vr"],
+                "player_skip": ["webpage", "configs", "js"],
             }
         }
-        if YOUTUBE_CLIENT_ID and YOUTUBE_CLIENT_SECRET:
-            opts["extractor_args"]["youtube"]["oauth2_client_id"] = [YOUTUBE_CLIENT_ID]
-            opts["extractor_args"]["youtube"]["oauth2_client_secret"] = [YOUTUBE_CLIENT_SECRET]
+        opts["http_headers"] = {
+            "User-Agent": "com.google.android.youtube/19.09.37 (Linux; U; Android 11) gzip",
+            "X-Youtube-Client-Name": "56",
+            "X-Youtube-Client-Version": "19.09.37",
+        }
     elif platform == "tiktok":
         opts["http_headers"] = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
