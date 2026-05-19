@@ -15,6 +15,9 @@ def detect_platform(url: str) -> str:
     else:
         return "unknown"
 
+YOUTUBE_CLIENT_ID = os.getenv("YOUTUBE_CLIENT_ID")
+YOUTUBE_CLIENT_SECRET = os.getenv("YOUTUBE_CLIENT_SECRET")
+
 def get_ydl_opts_base(platform=""):
     opts = {
         "quiet": True,
@@ -22,25 +25,22 @@ def get_ydl_opts_base(platform=""):
         "socket_timeout": 30,
     }
     if platform == "youtube":
+        opts["ap_mso"] = None
+        opts["username"] = "oauth2"
+        opts["password"] = ""
         opts["extractor_args"] = {
             "youtube": {
                 "player_client": ["android_vr", "android"],
                 "player_skip": ["webpage"],
             }
         }
-        opts["http_headers"] = {
-            "User-Agent": "com.google.android.youtube/19.09.37 (Linux; U; Android 11) gzip",
-        }
+        if YOUTUBE_CLIENT_ID and YOUTUBE_CLIENT_SECRET:
+            opts["extractor_args"]["youtube"]["oauth2_client_id"] = [YOUTUBE_CLIENT_ID]
+            opts["extractor_args"]["youtube"]["oauth2_client_secret"] = [YOUTUBE_CLIENT_SECRET]
     elif platform == "tiktok":
         opts["http_headers"] = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "Referer": "https://www.tiktok.com/",
-        }
-        opts["extractor_args"] = {
-            "tiktok": {
-                "app_version": "20.9.3",
-                "manifest_app_version": "209",
-            }
         }
     return opts
 
@@ -53,7 +53,6 @@ def download_video(url: str, output_dir: str = "downloads") -> dict:
         "format": "bestvideo+bestaudio/best/bestvideo/bestaudio",
         "merge_output_format": "mp4",
     })
-
     try:
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=True)
@@ -69,7 +68,6 @@ def download_video(url: str, output_dir: str = "downloads") -> dict:
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-
 def download_audio(url: str, output_dir: str = "downloads") -> dict:
     os.makedirs(output_dir, exist_ok=True)
     platform = detect_platform(url)
@@ -83,7 +81,6 @@ def download_audio(url: str, output_dir: str = "downloads") -> dict:
             "preferredquality": "192",
         }],
     })
-
     try:
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=True)
