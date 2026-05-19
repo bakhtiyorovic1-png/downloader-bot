@@ -1,6 +1,5 @@
 import yt_dlp
 import os
-import re
 
 def detect_platform(url: str) -> str:
     if "youtube.com" in url or "youtu.be" in url:
@@ -16,19 +15,33 @@ def detect_platform(url: str) -> str:
     else:
         return "unknown"
 
+def get_ydl_opts_base():
+    return {
+        "quiet": True,
+        "no_warnings": True,
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["android_vr", "android", "android_embedded"],
+                "player_skip": ["webpage", "configs"],
+            }
+        },
+        "http_headers": {
+            "User-Agent": "com.google.android.youtube/19.09.37 (Linux; U; Android 11) gzip",
+        },
+    }
+
 def download_video(url: str, output_dir: str = "downloads") -> dict:
     os.makedirs(output_dir, exist_ok=True)
 
-    ydl_opts = {
+    opts = get_ydl_opts_base()
+    opts.update({
         "outtmpl": f"{output_dir}/%(title)s.%(ext)s",
         "format": "bestvideo+bestaudio/best/bestvideo/bestaudio",
-        "quiet": True,
-        "no_warnings": True,
         "merge_output_format": "mp4",
-    }
+    })
 
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
             if not filename.endswith(".mp4"):
@@ -39,31 +52,26 @@ def download_video(url: str, output_dir: str = "downloads") -> dict:
                 "title": info.get("title", "Video"),
                 "platform": detect_platform(url),
             }
-    except yt_dlp.utils.DownloadError as e:
-        return {"success": False, "error": str(e)}
     except Exception as e:
-        return {"success": False, "error": f"Xatolik: {str(e)}"}
+        return {"success": False, "error": str(e)}
 
 
 def download_audio(url: str, output_dir: str = "downloads") -> dict:
     os.makedirs(output_dir, exist_ok=True)
 
-    ydl_opts = {
+    opts = get_ydl_opts_base()
+    opts.update({
         "outtmpl": f"{output_dir}/%(title)s.%(ext)s",
         "format": "bestaudio/best",
-        "quiet": True,
-        "no_warnings": True,
-        "postprocessors": [
-            {
-                "key": "FFmpegExtractAudio",
-                "preferredcodec": "mp3",
-                "preferredquality": "192",
-            }
-        ],
-    }
+        "postprocessors": [{
+            "key": "FFmpegExtractAudio",
+            "preferredcodec": "mp3",
+            "preferredquality": "192",
+        }],
+    })
 
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
             filename = os.path.splitext(filename)[0] + ".mp3"
@@ -73,7 +81,5 @@ def download_audio(url: str, output_dir: str = "downloads") -> dict:
                 "title": info.get("title", "Audio"),
                 "platform": detect_platform(url),
             }
-    except yt_dlp.utils.DownloadError as e:
-        return {"success": False, "error": str(e)}
     except Exception as e:
-        return {"success": False, "error": f"Xatolik: {str(e)}"}
+        return {"success": False, "error": str(e)}
