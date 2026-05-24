@@ -18,6 +18,25 @@ def detect_platform(url: str) -> str:
     else:
         return "unknown"
 
+def search_youtube_music(query: str, limit: int = 5) -> list:
+    try:
+        results = ytmusic.search(query, filter="songs", limit=limit)
+        songs = []
+        for r in results:
+            title = r.get("title", "")
+            artists = ", ".join([a["name"] for a in r.get("artists", [])])
+            video_id = r.get("videoId", "")
+            if video_id:
+                songs.append({
+                    "title": title,
+                    "artist": artists,
+                    "url": f"https://www.youtube.com/watch?v={video_id}",
+                    "display": f"{title} — {artists}"
+                })
+        return songs
+    except:
+        return []
+
 def get_ydl_opts_base(platform=""):
     opts = {
         "quiet": True,
@@ -40,16 +59,6 @@ def get_ydl_opts_base(platform=""):
             "Referer": "https://www.tiktok.com/",
         }
     return opts
-
-def search_youtube_music(query: str) -> str:
-    try:
-        results = ytmusic.search(query, filter="songs", limit=1)
-        if results:
-            video_id = results[0]["videoId"]
-            return f"https://www.youtube.com/watch?v={video_id}"
-    except:
-        pass
-    return None
 
 def download_video(url: str, output_dir: str = "downloads") -> dict:
     os.makedirs(output_dir, exist_ok=True)
@@ -78,20 +87,6 @@ def download_video(url: str, output_dir: str = "downloads") -> dict:
 def download_audio(url: str, output_dir: str = "downloads") -> dict:
     os.makedirs(output_dir, exist_ok=True)
     platform = detect_platform(url)
-    
-    # YouTube Music API orqali yuklaymiz
-    if platform == "youtube":
-        try:
-            with yt_dlp.YoutubeDL({"quiet": True}) as ydl:
-                info = ydl.extract_info(url, download=False)
-                title = info.get("title", "")
-            
-            music_url = search_youtube_music(title)
-            if music_url:
-                url = music_url
-        except:
-            pass
-
     opts = get_ydl_opts_base(platform)
     opts.update({
         "outtmpl": f"{output_dir}/%(title)s.%(ext)s",
