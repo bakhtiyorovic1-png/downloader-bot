@@ -10,7 +10,7 @@ from telegram.ext import (
     filters,
 )
 from dotenv import load_dotenv
-from downloader import download_video, download_audio, detect_platform
+from downloader import download_video, download_audio, detect_platform, search_youtube_music
 
 load_dotenv()
 
@@ -34,20 +34,20 @@ PLATFORM_EMOJI = {
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = (
         "👋 *Salom! Media Downloader Botga xush kelibsiz!*\n\n"
-        "Men quyidagi platformalardan video va audio yuklab beraman:\n\n"
-        "▶️ YouTube\n"
+        "Men quyidagilarni yuklab beraman:\n\n"
+        "▶️ YouTube — havola yoki qo'shiq nomi\n"
         "📸 Instagram\n"
         "📌 Pinterest\n"
         "🎵 TikTok\n"
         "👻 Snapchat\n\n"
-        "📎 Shunchaki menga *havolani yuboring*, men nima yuklab berishimni so'rayman!"
+        "📎 Havola yoki qo'shiq nomini yuboring!"
     )
     await update.message.reply_text(text, parse_mode="Markdown")
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = (
         "📖 *Foydalanish yo'riqnomasi:*\n\n"
-        "1️⃣ Yuklamoqchi bo'lgan video havolasini yuboring\n"
+        "1️⃣ Havola yoki qo'shiq nomini yuboring\n"
         "2️⃣ Video yoki Audio tanlang\n"
         "3️⃣ Fayl yuklanib, sizga yuboriladi\n\n"
         "⚠️ *Eslatma:* Katta fayllar biroz vaqt olishi mumkin."
@@ -55,15 +55,24 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(text, parse_mode="Markdown")
 
 async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    url = update.message.text.strip()
-    platform = detect_platform(url)
+    text = update.message.text.strip()
 
-    if platform == "unknown":
-        await update.message.reply_text(
-            "❌ Bu havola qo'llab-quvvatlanmaydi.\n"
-            "Iltimos, YouTube, Instagram, Pinterest, TikTok yoki Snapchat havolasini yuboring."
-        )
-        return
+    if text.startswith("http"):
+        url = text
+        platform = detect_platform(url)
+        if platform == "unknown":
+            await update.message.reply_text(
+                "❌ Bu havola qo'llab-quvvatlanmaydi.\n"
+                "Iltimos, YouTube, Instagram, Pinterest, TikTok yoki Snapchat havolasini yuboring."
+            )
+            return
+    else:
+        await update.message.reply_text(f"🔍 *{text}* qidirilmoqda...", parse_mode="Markdown")
+        url = search_youtube_music(text)
+        if not url:
+            await update.message.reply_text("❌ Qo'shiq topilmadi. Boshqa nom bilan sinab ko'ring.")
+            return
+        platform = "youtube"
 
     context.user_data["url"] = url
     context.user_data["platform"] = platform
@@ -80,7 +89,7 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await update.message.reply_text(
-        f"✅ Havola aniqlandi: *{platform_name}*\n\nNimani yuklamoqchisiz?",
+        f"✅ Topildi: *{platform_name}*\n\nNimani yuklamoqchisiz?",
         reply_markup=reply_markup,
         parse_mode="Markdown",
     )
@@ -114,8 +123,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if file_size > 50:
                 await query.message.reply_text(
                     f"⚠️ Fayl hajmi juda katta ({file_size:.1f} MB).\n"
-                    "Telegram 50MB gacha fayllarni qabul qiladi.\n"
-                    "Iltimos, qisqaroq video sinab ko'ring."
+                    "Telegram 50MB gacha fayllarni qabul qiladi."
                 )
             else:
                 await query.message.reply_text(f"✅ *{title}* yuklab olindi!", parse_mode="Markdown")
