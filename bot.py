@@ -66,33 +66,41 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "Iltimos, YouTube, Instagram, Pinterest, TikTok yoki Snapchat havolasini yuboring."
             )
             return
+        context.user_data["url"] = url
+        context.user_data["platform"] = platform
+        platform_name = PLATFORM_EMOJI.get(platform, "🌐")
+        keyboard = [
+            [
+                InlineKeyboardButton("🎬 Video yukla", callback_data="download_video"),
+                InlineKeyboardButton("🎵 Audio yukla", callback_data="download_audio"),
+            ],
+            [InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel")],
+        ]
+        await update.message.reply_text(
+            f"✅ Havola aniqlandi: *{platform_name}*\n\nNimani yuklamoqchisiz?",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="Markdown",
+        )
     else:
+        # Qo'shiq nomi — ro'yxat chiqarish
         await update.message.reply_text(f"🔍 *{text}* qidirilmoqda...", parse_mode="Markdown")
-        url = search_youtube_music(text)
-        if not url:
+        songs = search_youtube_music(text, limit=5)
+        if not songs:
             await update.message.reply_text("❌ Qo'shiq topilmadi. Boshqa nom bilan sinab ko'ring.")
             return
-        platform = "youtube"
 
-    context.user_data["url"] = url
-    context.user_data["platform"] = platform
+        context.user_data["search_results"] = songs
 
-    platform_name = PLATFORM_EMOJI.get(platform, "🌐")
+        keyboard = []
+        for i, song in enumerate(songs):
+            keyboard.append([InlineKeyboardButton(song["display"], callback_data=f"song_{i}")])
+        keyboard.append([InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel")])
 
-    keyboard = [
-        [
-            InlineKeyboardButton("🎬 Video yukla", callback_data="download_video"),
-            InlineKeyboardButton("🎵 Audio yukla", callback_data="download_audio"),
-        ],
-        [InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel")],
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    await update.message.reply_text(
-        f"✅ Topildi: *{platform_name}*\n\nNimani yuklamoqchisiz?",
-        reply_markup=reply_markup,
-        parse_mode="Markdown",
-    )
+        await update.message.reply_text(
+            "🎵 *Quyidagilardan birini tanlang:*",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="Markdown",
+        )
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -100,6 +108,28 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if query.data == "cancel":
         await query.edit_message_text("❌ Bekor qilindi.")
+        return
+
+    # Qo'shiq tanlash
+    if query.data.startswith("song_"):
+        index = int(query.data.split("_")[1])
+        songs = context.user_data.get("search_results", [])
+        if index < len(songs):
+            song = songs[index]
+            context.user_data["url"] = song["url"]
+            context.user_data["platform"] = "youtube"
+            keyboard = [
+                [
+                    InlineKeyboardButton("🎬 Video yukla", callback_data="download_video"),
+                    InlineKeyboardButton("🎵 Audio yukla", callback_data="download_audio"),
+                ],
+                [InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel")],
+            ]
+            await query.edit_message_text(
+                f"✅ *{song['display']}*\n\nNimani yuklamoqchisiz?",
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="Markdown",
+            )
         return
 
     url = context.user_data.get("url")
@@ -114,19 +144,16 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if query.data == "download_video":
         await query.edit_message_text(f"⏳ *{platform_name}* dan video yuklanmoqda...", parse_mode="Markdown")
         result = download_video(url)
-
         if result["success"]:
             filepath = result["filepath"]
             title = result["title"]
             file_size = os.path.getsize(filepath) / (1024 * 1024)
-
             if file_size > 50:
                 await query.message.reply_text(
                     f"⚠️ Fayl hajmi juda katta ({file_size:.1f} MB).\n"
                     "Telegram 50MB gacha fayllarni qabul qiladi."
                 )
             else:
-                await query.message.reply_text(f"✅ *{title}* yuklab olindi!", parse_mode="Markdown")
                 with open(filepath, "rb") as video_file:
                     await query.message.reply_video(
                         video=video_file,
@@ -141,18 +168,15 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == "download_audio":
         await query.edit_message_text(f"⏳ *{platform_name}* dan audio yuklanmoqda...", parse_mode="Markdown")
         result = download_audio(url)
-
         if result["success"]:
             filepath = result["filepath"]
             title = result["title"]
             file_size = os.path.getsize(filepath) / (1024 * 1024)
-
             if file_size > 50:
                 await query.message.reply_text(
                     f"⚠️ Fayl hajmi juda katta ({file_size:.1f} MB)."
                 )
             else:
-                await query.message.reply_text(f"✅ *{title}* audio yuklab olindi!", parse_mode="Markdown")
                 with open(filepath, "rb") as audio_file:
                     await query.message.reply_audio(
                         audio=audio_file,
@@ -166,12 +190,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
-
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_url))
-
     logger.info("Bot ishga tushdi! ✅")
     app.run_polling()
 
