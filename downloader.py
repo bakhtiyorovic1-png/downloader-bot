@@ -1,5 +1,8 @@
 import yt_dlp
 import os
+from ytmusicapi import YTMusic
+
+ytmusic = YTMusic()
 
 def detect_platform(url: str) -> str:
     if "youtube.com" in url or "youtu.be" in url:
@@ -24,14 +27,12 @@ def get_ydl_opts_base(platform=""):
     if platform == "youtube":
         opts["extractor_args"] = {
             "youtube": {
-                "player_client": ["android_vr"],
-                "player_skip": ["webpage", "configs", "js"],
+                "player_client": ["android_vr", "android"],
+                "player_skip": ["webpage"],
             }
         }
         opts["http_headers"] = {
-            "User-Agent": "com.google.android.youtube/19.09.37 (Linux; U; Android 11) gzip",
-            "X-Youtube-Client-Name": "56",
-            "X-Youtube-Client-Version": "19.09.37",
+            "User-Agent": "com.google.android.apps.youtube.music/X.XX (Linux; U; Android 11) gzip",
         }
     elif platform == "tiktok":
         opts["http_headers"] = {
@@ -39,6 +40,16 @@ def get_ydl_opts_base(platform=""):
             "Referer": "https://www.tiktok.com/",
         }
     return opts
+
+def search_youtube_music(query: str) -> str:
+    try:
+        results = ytmusic.search(query, filter="songs", limit=1)
+        if results:
+            video_id = results[0]["videoId"]
+            return f"https://www.youtube.com/watch?v={video_id}"
+    except:
+        pass
+    return None
 
 def download_video(url: str, output_dir: str = "downloads") -> dict:
     os.makedirs(output_dir, exist_ok=True)
@@ -67,6 +78,20 @@ def download_video(url: str, output_dir: str = "downloads") -> dict:
 def download_audio(url: str, output_dir: str = "downloads") -> dict:
     os.makedirs(output_dir, exist_ok=True)
     platform = detect_platform(url)
+    
+    # YouTube Music API orqali yuklaymiz
+    if platform == "youtube":
+        try:
+            with yt_dlp.YoutubeDL({"quiet": True}) as ydl:
+                info = ydl.extract_info(url, download=False)
+                title = info.get("title", "")
+            
+            music_url = search_youtube_music(title)
+            if music_url:
+                url = music_url
+        except:
+            pass
+
     opts = get_ydl_opts_base(platform)
     opts.update({
         "outtmpl": f"{output_dir}/%(title)s.%(ext)s",
