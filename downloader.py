@@ -5,7 +5,7 @@ from ytmusicapi import YTMusic
 
 ytmusic = YTMusic()
 
-COOKIES_FILE = "/etc/secrets/youtube.com_cookies.txt"
+COOKIES_FILE = "youtube.com_cookies.txt"
 
 def detect_platform(url: str) -> str:
     if "youtube.com" in url or "youtu.be" in url:
