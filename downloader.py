@@ -4,6 +4,8 @@ from ytmusicapi import YTMusic
 
 ytmusic = YTMusic()
 
+COOKIES_FILE = "youtube.com_cookies.txt"
+
 def detect_platform(url: str) -> str:
     if "youtube.com" in url or "youtu.be" in url:
         return "youtube"
@@ -44,6 +46,8 @@ def get_ydl_opts_base(platform=""):
         "socket_timeout": 30,
     }
     if platform == "youtube":
+        if os.path.exists(COOKIES_FILE):
+            opts["cookiefile"] = COOKIES_FILE
         opts["extractor_args"] = {
             "youtube": {
                 "player_client": ["android_vr", "android"],
