@@ -1,5 +1,6 @@
 import os
 import logging
+import time
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
@@ -82,20 +83,16 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown",
         )
     else:
-        # Qo'shiq nomi — ro'yxat chiqarish
         await update.message.reply_text(f"🔍 *{text}* qidirilmoqda...", parse_mode="Markdown")
         songs = search_youtube_music(text, limit=5)
         if not songs:
             await update.message.reply_text("❌ Qo'shiq topilmadi. Boshqa nom bilan sinab ko'ring.")
             return
-
         context.user_data["search_results"] = songs
-
         keyboard = []
         for i, song in enumerate(songs):
             keyboard.append([InlineKeyboardButton(song["display"], callback_data=f"song_{i}")])
         keyboard.append([InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel")])
-
         await update.message.reply_text(
             "🎵 *Quyidagilardan birini tanlang:*",
             reply_markup=InlineKeyboardMarkup(keyboard),
@@ -110,7 +107,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("❌ Bekor qilindi.")
         return
 
-    # Qo'shiq tanlash
     if query.data.startswith("song_"):
         index = int(query.data.split("_")[1])
         songs = context.user_data.get("search_results", [])
@@ -189,16 +185,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
 def main():
-    app = Application.builder().token(BOT_TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("help", help_command))
-    app.add_handler(CallbackQueryHandler(handle_callback))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_url))
-    logger.info("Bot ishga tushdi! ✅")
-    app.run_polling()
-
-if __name__ == "__main__":
-    def main():
     while True:
         try:
             app = Application.builder().token(BOT_TOKEN).build()
@@ -210,5 +196,7 @@ if __name__ == "__main__":
             app.run_polling(drop_pending_updates=True)
         except Exception as e:
             logger.error(f"Xato: {e}")
-            import time
             time.sleep(5)
+
+if __name__ == "__main__":
+    main()
