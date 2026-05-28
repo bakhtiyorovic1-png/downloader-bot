@@ -198,4 +198,17 @@ def main():
     app.run_polling()
 
 if __name__ == "__main__":
-    main()
+    def main():
+    while True:
+        try:
+            app = Application.builder().token(BOT_TOKEN).build()
+            app.add_handler(CommandHandler("start", start))
+            app.add_handler(CommandHandler("help", help_command))
+            app.add_handler(CallbackQueryHandler(handle_callback))
+            app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_url))
+            logger.info("Bot ishga tushdi! ✅")
+            app.run_polling(drop_pending_updates=True)
+        except Exception as e:
+            logger.error(f"Xato: {e}")
+            import time
+            time.sleep(5)
