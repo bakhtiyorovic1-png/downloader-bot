@@ -1,11 +1,25 @@
 import yt_dlp
 import os
+import base64
 import tempfile
 from ytmusicapi import YTMusic
 
 ytmusic = YTMusic()
 
-COOKIES_FILE = "youtube.com_cookies.txt"
+def get_cookies_file():
+    cookies_b64 = os.getenv("YOUTUBE_COOKIES_B64", "")
+    if cookies_b64:
+        try:
+            cookies_content = base64.b64decode(cookies_b64).decode("utf-8")
+            tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False)
+            tmp.write(cookies_content)
+            tmp.close()
+            print(f"Cookie fayl yaratildi: {tmp.name}")
+            return tmp.name
+        except Exception as e:
+            print(f"Cookie xato: {e}")
+    print("Cookie topilmadi!")
+    return None
 
 def detect_platform(url: str) -> str:
     if "youtube.com" in url or "youtu.be" in url:
@@ -41,18 +55,15 @@ def search_youtube_music(query: str, limit: int = 5) -> list:
         return []
 
 def get_ydl_opts_base(platform=""):
-    print(f"Cookie fayl mavjudmi: {os.path.exists(COOKIES_FILE)}, Yo'l: {COOKIES_FILE}")
     opts = {
         "quiet": True,
         "no_warnings": True,
         "socket_timeout": 30,
     }
     if platform == "youtube":
-        if os.path.exists(COOKIES_FILE):
-            print("Cookie fayl topildi! Ishlatilmoqda...")
-            opts["cookiefile"] = COOKIES_FILE
-        else:
-            print("Cookie fayl topilmadi!")
+        cookies = get_cookies_file()
+        if cookies:
+            opts["cookiefile"] = cookies
         opts["extractor_args"] = {
             "youtube": {
                 "player_client": ["android_vr", "android"],
