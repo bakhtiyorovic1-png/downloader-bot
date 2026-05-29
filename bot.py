@@ -1,202 +1,129 @@
+import yt_dlp
 import os
-import logging
-import time
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import (
-    Application,
-    CommandHandler,
-    MessageHandler,
-    CallbackQueryHandler,
-    ContextTypes,
-    filters,
-)
-from dotenv import load_dotenv
-from downloader import download_video, download_audio, detect_platform, search_youtube_music
+import base64
+import tempfile
+from ytmusicapi import YTMusic
 
-load_dotenv()
+ytmusic = YTMusic()
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO,
-)
-logger = logging.getLogger(__name__)
-
-PLATFORM_EMOJI = {
-    "youtube": "▶️ YouTube",
-    "instagram": "📸 Instagram",
-    "pinterest": "📌 Pinterest",
-    "tiktok": "🎵 TikTok",
-    "snapchat": "👻 Snapchat",
-    "unknown": "🌐 Boshqa",
-}
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = (
-        "👋 *Salom! Media Downloader Botga xush kelibsiz!*\n\n"
-        "Men quyidagilarni yuklab beraman:\n\n"
-        "▶️ YouTube — havola yoki qo'shiq nomi\n"
-        "📸 Instagram\n"
-        "📌 Pinterest\n"
-        "🎵 TikTok\n"
-        "👻 Snapchat\n\n"
-        "📎 Havola yoki qo'shiq nomini yuboring!"
-    )
-    await update.message.reply_text(text, parse_mode="Markdown")
-
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = (
-        "📖 *Foydalanish yo'riqnomasi:*\n\n"
-        "1️⃣ Havola yoki qo'shiq nomini yuboring\n"
-        "2️⃣ Video yoki Audio tanlang\n"
-        "3️⃣ Fayl yuklanib, sizga yuboriladi\n\n"
-        "⚠️ *Eslatma:* Katta fayllar biroz vaqt olishi mumkin."
-    )
-    await update.message.reply_text(text, parse_mode="Markdown")
-
-async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text.strip()
-
-    if text.startswith("http"):
-        url = text
-        platform = detect_platform(url)
-        if platform == "unknown":
-            await update.message.reply_text(
-                "❌ Bu havola qo'llab-quvvatlanmaydi.\n"
-                "Iltimos, YouTube, Instagram, Pinterest, TikTok yoki Snapchat havolasini yuboring."
-            )
-            return
-        context.user_data["url"] = url
-        context.user_data["platform"] = platform
-        platform_name = PLATFORM_EMOJI.get(platform, "🌐")
-        keyboard = [
-            [
-                InlineKeyboardButton("🎬 Video yukla", callback_data="download_video"),
-                InlineKeyboardButton("🎵 Audio yukla", callback_data="download_audio"),
-            ],
-            [InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel")],
-        ]
-        await update.message.reply_text(
-            f"✅ Havola aniqlandi: *{platform_name}*\n\nNimani yuklamoqchisiz?",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="Markdown",
-        )
-    else:
-        await update.message.reply_text(f"🔍 *{text}* qidirilmoqda...", parse_mode="Markdown")
-        songs = search_youtube_music(text, limit=5)
-        if not songs:
-            await update.message.reply_text("❌ Qo'shiq topilmadi. Boshqa nom bilan sinab ko'ring.")
-            return
-        context.user_data["search_results"] = songs
-        keyboard = []
-        for i, song in enumerate(songs):
-            keyboard.append([InlineKeyboardButton(song["display"], callback_data=f"song_{i}")])
-        keyboard.append([InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel")])
-        await update.message.reply_text(
-            "🎵 *Quyidagilardan birini tanlang:*",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="Markdown",
-        )
-
-async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-
-    if query.data == "cancel":
-        await query.edit_message_text("❌ Bekor qilindi.")
-        return
-
-    if query.data.startswith("song_"):
-        index = int(query.data.split("_")[1])
-        songs = context.user_data.get("search_results", [])
-        if index < len(songs):
-            song = songs[index]
-            context.user_data["url"] = song["url"]
-            context.user_data["platform"] = "youtube"
-            keyboard = [
-                [
-                    InlineKeyboardButton("🎬 Video yukla", callback_data="download_video"),
-                    InlineKeyboardButton("🎵 Audio yukla", callback_data="download_audio"),
-                ],
-                [InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel")],
-            ]
-            await query.edit_message_text(
-                f"✅ *{song['display']}*\n\nNimani yuklamoqchisiz?",
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="Markdown",
-            )
-        return
-
-    url = context.user_data.get("url")
-    platform = context.user_data.get("platform", "")
-
-    if not url:
-        await query.edit_message_text("⚠️ Havola topilmadi. Qaytadan yuboring.")
-        return
-
-    platform_name = PLATFORM_EMOJI.get(platform, "🌐")
-
-    if query.data == "download_video":
-        await query.edit_message_text(f"⏳ *{platform_name}* dan video yuklanmoqda...", parse_mode="Markdown")
-        result = download_video(url)
-        if result["success"]:
-            filepath = result["filepath"]
-            title = result["title"]
-            file_size = os.path.getsize(filepath) / (1024 * 1024)
-            if file_size > 50:
-                await query.message.reply_text(
-                    f"⚠️ Fayl hajmi juda katta ({file_size:.1f} MB).\n"
-                    "Telegram 50MB gacha fayllarni qabul qiladi."
-                )
-            else:
-                with open(filepath, "rb") as video_file:
-                    await query.message.reply_video(
-                        video=video_file,
-                        caption=f"🎬 {title}\n📌 {platform_name}",
-                    )
-            os.remove(filepath)
-        else:
-            await query.message.reply_text(
-                f"❌ Xatolik yuz berdi:\n`{result['error']}`", parse_mode="Markdown"
-            )
-
-    elif query.data == "download_audio":
-        await query.edit_message_text(f"⏳ *{platform_name}* dan audio yuklanmoqda...", parse_mode="Markdown")
-        result = download_audio(url)
-        if result["success"]:
-            filepath = result["filepath"]
-            title = result["title"]
-            file_size = os.path.getsize(filepath) / (1024 * 1024)
-            if file_size > 50:
-                await query.message.reply_text(
-                    f"⚠️ Fayl hajmi juda katta ({file_size:.1f} MB)."
-                )
-            else:
-                with open(filepath, "rb") as audio_file:
-                    await query.message.reply_audio(
-                        audio=audio_file,
-                        caption=f"🎵 {title}\n📌 {platform_name}",
-                    )
-            os.remove(filepath)
-        else:
-            await query.message.reply_text(
-                f"❌ Xatolik yuz berdi:\n`{result['error']}`", parse_mode="Markdown"
-            )
-
-def main():
-    while True:
+def get_cookies_file():
+    cookies_b64 = os.getenv("YOUTUBE_COOKIES_B64", "")
+    if cookies_b64:
         try:
-            app = Application.builder().token(BOT_TOKEN).build()
-            app.add_handler(CommandHandler("start", start))
-            app.add_handler(CommandHandler("help", help_command))
-            app.add_handler(CallbackQueryHandler(handle_callback))
-            app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_url))
-            logger.info("Bot ishga tushdi! ✅")
-            app.run_polling(drop_pending_updates=True)
+            cookies_content = base64.b64decode(cookies_b64).decode("utf-8")
+            tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False)
+            tmp.write(cookies_content)
+            tmp.close()
+            return tmp.name
         except Exception as e:
-            logger.error(f"Xato: {e}")
-            time.sleep(5)
+            print(f"Cookie xato: {e}")
+    return None
 
-if __name__ == "__main__":
-    main()
+def detect_platform(url: str) -> str:
+    if "youtube.com" in url or "youtu.be" in url:
+        return "youtube"
+    elif "instagram.com" in url:
+        return "instagram"
+    elif "pinterest.com" in url or "pin.it" in url:
+        return "pinterest"
+    elif "tiktok.com" in url:
+        return "tiktok"
+    elif "snapchat.com" in url:
+        return "snapchat"
+    else:
+        return "unknown"
+
+def search_youtube_music(query: str, limit: int = 5) -> list:
+    try:
+        results = ytmusic.search(query, filter="songs", limit=limit)
+        songs = []
+        for r in results:
+            title = r.get("title", "")
+            artists = ", ".join([a["name"] for a in r.get("artists", [])])
+            video_id = r.get("videoId", "")
+            if video_id:
+                songs.append({
+                    "title": title,
+                    "artist": artists,
+                    "url": f"https://www.youtube.com/watch?v={video_id}",
+                    "display": f"{title} — {artists}"
+                })
+        return songs
+    except:
+        return []
+
+def get_ydl_opts_base(platform=""):
+    opts = {
+        "quiet": True,
+        "no_warnings": True,
+        "socket_timeout": 30,
+    }
+    if platform == "youtube":
+        cookies = get_cookies_file()
+        if cookies:
+            opts["cookiefile"] = cookies
+        opts["extractor_args"] = {
+            "youtube": {
+                "player_client": ["web", "android"],
+            }
+        }
+        opts["http_headers"] = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        }
+    elif platform == "tiktok":
+        opts["http_headers"] = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Referer": "https://www.tiktok.com/",
+        }
+    return opts
+
+def download_video(url: str, output_dir: str = "downloads") -> dict:
+    os.makedirs(output_dir, exist_ok=True)
+    platform = detect_platform(url)
+    opts = get_ydl_opts_base(platform)
+    opts.update({
+        "outtmpl": f"{output_dir}/%(title)s.%(ext)s",
+        "format": "bestvideo+bestaudio/best/bestvideo/bestaudio",
+        "merge_output_format": "mp4",
+    })
+    try:
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            filename = ydl.prepare_filename(info)
+            if not filename.endswith(".mp4"):
+                filename = os.path.splitext(filename)[0] + ".mp4"
+            return {
+                "success": True,
+                "filepath": filename,
+                "title": info.get("title", "Video"),
+                "platform": platform,
+            }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def download_audio(url: str, output_dir: str = "downloads") -> dict:
+    os.makedirs(output_dir, exist_ok=True)
+    platform = detect_platform(url)
+    opts = get_ydl_opts_base(platform)
+    opts.update({
+        "outtmpl": f"{output_dir}/%(title)s.%(ext)s",
+        "format": "bestaudio/best",
+        "postprocessors": [{
+            "key": "FFmpegExtractAudio",
+            "preferredcodec": "mp3",
+            "preferredquality": "192",
+        }],
+    })
+    try:
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            filename = ydl.prepare_filename(info)
+            filename = os.path.splitext(filename)[0] + ".mp3"
+            return {
+                "success": True,
+                "filepath": filename,
+                "title": info.get("title", "Audio"),
+                "platform": platform,
+            }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
