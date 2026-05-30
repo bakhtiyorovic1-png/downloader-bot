@@ -56,7 +56,7 @@ def search_youtube_music(query: str, limit: int = 5) -> list:
 
 def get_ydl_opts_base(platform=""):
     opts = {
-        "quiet": True,
+        "quiet": False,
         "no_warnings": True,
         "socket_timeout": 30,
     }
