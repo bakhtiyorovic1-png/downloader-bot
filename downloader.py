@@ -54,7 +54,7 @@ def search_youtube_music(query: str, limit: int = 5) -> list:
     except:
         return []
 
-def get_ydl_opts_base(platform=""):
+print("COOKIE EXISTS:", bool(os.getenv("YOUTUBE_COOKIES_B64")))def get_ydl_opts_base(platform=""):
     opts = {
         "quiet": False,
         "no_warnings": True,
