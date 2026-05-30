@@ -8,6 +8,7 @@ ytmusic = YTMusic()
 
 def get_cookies_file():
     cookies_b64 = os.getenv("YOUTUBE_COOKIES_B64", "")
+    print("COOKIE EXISTS:", bool(cookies_b64))
     if cookies_b64:
         try:
             cookies_content = base64.b64decode(cookies_b64).decode("utf-8")
@@ -54,10 +55,10 @@ def search_youtube_music(query: str, limit: int = 5) -> list:
     except:
         return []
 
-print("COOKIE EXISTS:", bool(os.getenv("YOUTUBE_COOKIES_B64")))def get_ydl_opts_base(platform=""):
+def get_ydl_opts_base(platform=""):
     opts = {
         "quiet": False,
-        "no_warnings": True,
+        "no_warnings": False,
         "socket_timeout": 30,
     }
     if platform == "youtube":
@@ -66,12 +67,11 @@ print("COOKIE EXISTS:", bool(os.getenv("YOUTUBE_COOKIES_B64")))def get_ydl_opts_
             opts["cookiefile"] = cookies
         opts["extractor_args"] = {
             "youtube": {
-                "player_client": ["android_vr", "android"],
-                "player_skip": ["webpage"],
+                "player_client": ["web", "android"],
             }
         }
         opts["http_headers"] = {
-            "User-Agent": "com.google.android.apps.youtube.music/X.XX (Linux; U; Android 11) gzip",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         }
     elif platform == "tiktok":
         opts["http_headers"] = {
