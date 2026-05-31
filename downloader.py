@@ -2,9 +2,18 @@ import yt_dlp
 import os
 import base64
 import tempfile
+import shutil
 from ytmusicapi import YTMusic
 
 ytmusic = YTMusic()
+
+def get_ffmpeg_location():
+    ffmpeg = shutil.which("ffmpeg")
+    if ffmpeg:
+        print(f"FFmpeg topildi: {ffmpeg}")
+        return os.path.dirname(ffmpeg)
+    print("FFmpeg topilmadi!")
+    return None
 
 def get_cookies_file():
     local_file = "cookies.txt"
@@ -86,12 +95,14 @@ def download_video(url: str, output_dir: str = "downloads") -> dict:
     os.makedirs(output_dir, exist_ok=True)
     platform = detect_platform(url)
     opts = get_ydl_opts_base(platform)
+    ffmpeg_loc = get_ffmpeg_location()
     opts.update({
         "outtmpl": f"{output_dir}/%(title)s.%(ext)s",
         "format": "bestvideo+bestaudio/best/bestvideo/bestaudio",
         "merge_output_format": "mp4",
-        "ffmpeg_location": "/usr/bin",
     })
+    if ffmpeg_loc:
+        opts["ffmpeg_location"] = ffmpeg_loc
     try:
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=True)
@@ -111,16 +122,18 @@ def download_audio(url: str, output_dir: str = "downloads") -> dict:
     os.makedirs(output_dir, exist_ok=True)
     platform = detect_platform(url)
     opts = get_ydl_opts_base(platform)
+    ffmpeg_loc = get_ffmpeg_location()
     opts.update({
         "outtmpl": f"{output_dir}/%(title)s.%(ext)s",
         "format": "bestaudio/best",
-        "ffmpeg_location": "/usr/bin",
         "postprocessors": [{
             "key": "FFmpegExtractAudio",
             "preferredcodec": "mp3",
             "preferredquality": "192",
         }],
     })
+    if ffmpeg_loc:
+        opts["ffmpeg_location"] = ffmpeg_loc
     try:
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=True)
