@@ -12,7 +12,7 @@ from telegram.ext import (
     filters,
 )
 from dotenv import load_dotenv
-from downloader import download_video, download_audio, detect_platform, search_youtube_music
+from downloader import download_video, detect_platform, search_youtube_music
 
 load_dotenv()
 
@@ -50,8 +50,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = (
         "📖 *Foydalanish yo'riqnomasi:*\n\n"
         "1️⃣ Havola yoki qo'shiq nomini yuboring\n"
-        "2️⃣ Video yoki Audio tanlang\n"
-        "3️⃣ Fayl yuklanib, sizga yuboriladi\n\n"
+        "2️⃣ Video yuklanib, sizga yuboriladi\n\n"
         "⚠️ *Eslatma:* Katta fayllar biroz vaqt olishi mumkin."
     )
     await update.message.reply_text(text, parse_mode="Markdown")
@@ -72,10 +71,7 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["platform"] = platform
         platform_name = PLATFORM_EMOJI.get(platform, "🌐")
         keyboard = [
-            [
-                InlineKeyboardButton("🎬 Video yukla", callback_data="download_video"),
-                InlineKeyboardButton("🎵 Audio yukla", callback_data="download_audio"),
-            ],
+            [InlineKeyboardButton("🎬 Video yukla", callback_data="download_video")],
             [InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel")],
         ]
         await update.message.reply_text(
@@ -116,10 +112,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data["url"] = song["url"]
             context.user_data["platform"] = "youtube"
             keyboard = [
-                [
-                    InlineKeyboardButton("🎬 Video yukla", callback_data="download_video"),
-                    InlineKeyboardButton("🎵 Audio yukla", callback_data="download_audio"),
-                ],
+                [InlineKeyboardButton("🎬 Video yukla", callback_data="download_video")],
                 [InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel")],
             ]
             await query.edit_message_text(
@@ -155,29 +148,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     await query.message.reply_video(
                         video=video_file,
                         caption=f"🎬 {title}\n📌 {platform_name}",
-                    )
-            os.remove(filepath)
-        else:
-            await query.message.reply_text(
-                f"❌ Xatolik yuz berdi:\n`{result['error']}`", parse_mode="Markdown"
-            )
-
-    elif query.data == "download_audio":
-        await query.edit_message_text(f"⏳ *{platform_name}* dan audio yuklanmoqda...", parse_mode="Markdown")
-        result = download_audio(url)
-        if result["success"]:
-            filepath = result["filepath"]
-            title = result["title"]
-            file_size = os.path.getsize(filepath) / (1024 * 1024)
-            if file_size > 50:
-                await query.message.reply_text(
-                    f"⚠️ Fayl hajmi juda katta ({file_size:.1f} MB)."
-                )
-            else:
-                with open(filepath, "rb") as audio_file:
-                    await query.message.reply_audio(
-                        audio=audio_file,
-                        caption=f"🎵 {title}\n📌 {platform_name}",
                     )
             os.remove(filepath)
         else:
