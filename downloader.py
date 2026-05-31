@@ -7,6 +7,10 @@ from ytmusicapi import YTMusic
 ytmusic = YTMusic()
 
 def get_cookies_file():
+    local_file = "cookies.txt"
+    if os.path.exists(local_file):
+        print(f"Cookie fayl topildi: {local_file}")
+        return local_file
     cookies_b64 = os.getenv("YOUTUBE_COOKIES_B64", "")
     if cookies_b64:
         try:
@@ -17,6 +21,7 @@ def get_cookies_file():
             return tmp.name
         except Exception as e:
             print(f"Cookie xato: {e}")
+    print("Cookie topilmadi!")
     return None
 
 def detect_platform(url: str) -> str:
