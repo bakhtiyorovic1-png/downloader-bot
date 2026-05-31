@@ -1,5 +1,6 @@
 python-telegram-bot
-yt-dlp==2025.5.22
+yt-dlp
 python-dotenv
 instaloader
 ytmusicapi
+httpx
