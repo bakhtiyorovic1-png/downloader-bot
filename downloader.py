@@ -8,18 +8,15 @@ ytmusic = YTMusic()
 
 def get_cookies_file():
     cookies_b64 = os.getenv("YOUTUBE_COOKIES_B64", "")
-    print("COOKIE EXISTS:", bool(cookies_b64))
     if cookies_b64:
         try:
             cookies_content = base64.b64decode(cookies_b64).decode("utf-8")
             tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False)
             tmp.write(cookies_content)
             tmp.close()
-            print(f"Cookie fayl yaratildi: {tmp.name}")
             return tmp.name
         except Exception as e:
             print(f"Cookie xato: {e}")
-    print("Cookie topilmadi!")
     return None
 
 def detect_platform(url: str) -> str:
@@ -57,8 +54,8 @@ def search_youtube_music(query: str, limit: int = 5) -> list:
 
 def get_ydl_opts_base(platform=""):
     opts = {
-        "quiet": False,
-        "no_warnings": False,
+        "quiet": True,
+        "no_warnings": True,
         "socket_timeout": 30,
     }
     if platform == "youtube":
@@ -88,6 +85,7 @@ def download_video(url: str, output_dir: str = "downloads") -> dict:
         "outtmpl": f"{output_dir}/%(title)s.%(ext)s",
         "format": "bestvideo+bestaudio/best/bestvideo/bestaudio",
         "merge_output_format": "mp4",
+        "ffmpeg_location": "/run/current-system/sw/bin",
     })
     try:
         with yt_dlp.YoutubeDL(opts) as ydl:
@@ -111,6 +109,7 @@ def download_audio(url: str, output_dir: str = "downloads") -> dict:
     opts.update({
         "outtmpl": f"{output_dir}/%(title)s.%(ext)s",
         "format": "bestaudio/best",
+        "ffmpeg_location": "/run/current-system/sw/bin",
         "postprocessors": [{
             "key": "FFmpegExtractAudio",
             "preferredcodec": "mp3",
