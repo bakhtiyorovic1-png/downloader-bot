@@ -10,16 +10,14 @@ ytmusic = YTMusic()
 def get_ffmpeg_location():
     ffmpeg = shutil.which("ffmpeg")
     if ffmpeg:
-        print(f"FFmpeg topildi: {ffmpeg}")
         return os.path.dirname(ffmpeg)
-    print("FFmpeg topilmadi!")
     return None
 
 def get_cookies_file():
-    local_file = "cookies.txt"
-    if os.path.exists(local_file):
-        print(f"Cookie fayl topildi: {local_file}")
-        return local_file
+    for path in ["/app/cookies.txt", "cookies.txt"]:
+        if os.path.exists(path):
+            print(f"Cookie topildi: {path}")
+            return path
     cookies_b64 = os.getenv("YOUTUBE_COOKIES_B64", "")
     if cookies_b64:
         try:
@@ -27,6 +25,7 @@ def get_cookies_file():
             tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False)
             tmp.write(cookies_content)
             tmp.close()
+            print(f"Cookie env dan yaratildi: {tmp.name}")
             return tmp.name
         except Exception as e:
             print(f"Cookie xato: {e}")
