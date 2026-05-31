@@ -85,7 +85,7 @@ def download_video(url: str, output_dir: str = "downloads") -> dict:
         "outtmpl": f"{output_dir}/%(title)s.%(ext)s",
         "format": "bestvideo+bestaudio/best/bestvideo/bestaudio",
         "merge_output_format": "mp4",
-        "ffmpeg_location": "/run/current-system/sw/bin",
+        "ffmpeg_location": "/usr/bin",
     })
     try:
         with yt_dlp.YoutubeDL(opts) as ydl:
@@ -109,7 +109,7 @@ def download_audio(url: str, output_dir: str = "downloads") -> dict:
     opts.update({
         "outtmpl": f"{output_dir}/%(title)s.%(ext)s",
         "format": "bestaudio/best",
-        "ffmpeg_location": "/run/current-system/sw/bin",
+        "ffmpeg_location": "/usr/bin",
         "postprocessors": [{
             "key": "FFmpegExtractAudio",
             "preferredcodec": "mp3",
