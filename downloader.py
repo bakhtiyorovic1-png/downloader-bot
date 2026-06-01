@@ -16,7 +16,6 @@ def get_ffmpeg_location():
 def get_cookies_file():
     for path in ["/app/cookies.txt", "cookies.txt"]:
         if os.path.exists(path):
-            print(f"Cookie topildi: {path}")
             return path
     cookies_b64 = os.getenv("YOUTUBE_COOKIES_B64", "")
     if cookies_b64:
@@ -25,11 +24,9 @@ def get_cookies_file():
             tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False)
             tmp.write(cookies_content)
             tmp.close()
-            print(f"Cookie env dan yaratildi: {tmp.name}")
             return tmp.name
-        except Exception as e:
-            print(f"Cookie xato: {e}")
-    print("Cookie topilmadi!")
+        except:
+            pass
     return None
 
 def detect_platform(url: str) -> str:
@@ -37,6 +34,8 @@ def detect_platform(url: str) -> str:
         return "youtube"
     elif "instagram.com" in url:
         return "instagram"
+    elif "facebook.com" in url or "fb.watch" in url:
+        return "facebook"
     elif "pinterest.com" in url or "pin.it" in url:
         return "pinterest"
     elif "tiktok.com" in url:
@@ -83,6 +82,10 @@ def get_ydl_opts_base(platform=""):
         opts["http_headers"] = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         }
+    elif platform in ["instagram", "facebook"]:
+        opts["http_headers"] = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        }
     elif platform == "tiktok":
         opts["http_headers"] = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -97,8 +100,7 @@ def download_video(url: str, output_dir: str = "downloads") -> dict:
     ffmpeg_loc = get_ffmpeg_location()
     opts.update({
         "outtmpl": f"{output_dir}/%(title)s.%(ext)s",
-        "format": "bestvideo+bestaudio/best/bestvideo/bestaudio",
-        "merge_output_format": "mp4",
+        "format": "best[ext=mp4]/best",
     })
     if ffmpeg_loc:
         opts["ffmpeg_location"] = ffmpeg_loc
