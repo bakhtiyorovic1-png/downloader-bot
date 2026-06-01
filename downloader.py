@@ -1,4 +1,4 @@
-import yt_dlp
+   import yt_dlp
 import os
 import base64
 import tempfile
@@ -100,7 +100,7 @@ def download_video(url: str, output_dir: str = "downloads") -> dict:
     ffmpeg_loc = get_ffmpeg_location()
     opts.update({
         "outtmpl": f"{output_dir}/%(title)s.%(ext)s",
-        "format": "best[ext=mp4]/best",
+        "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
     })
     if ffmpeg_loc:
         opts["ffmpeg_location"] = ffmpeg_loc
@@ -116,6 +116,35 @@ def download_video(url: str, output_dir: str = "downloads") -> dict:
                 "title": info.get("title", "Video"),
                 "platform": platform,
             }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def download_image(url: str, output_dir: str = "downloads") -> dict:
+    os.makedirs(output_dir, exist_ok=True)
+    platform = detect_platform(url)
+    opts = get_ydl_opts_base(platform)
+    opts.update({
+        "outtmpl": f"{output_dir}/%(title)s.%(ext)s",
+        "format": "bestvideo[ext=mp4]/best[ext=mp4]/best",
+        "writethumbnail": True,
+        "skip_download": True,
+    })
+    try:
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            title = info.get("title", "Rasm")
+            thumbnail = info.get("thumbnail", "")
+            if thumbnail:
+                import urllib.request
+                img_path = f"{output_dir}/{title}.jpg"
+                urllib.request.urlretrieve(thumbnail, img_path)
+                return {
+                    "success": True,
+                    "filepath": img_path,
+                    "title": title,
+                    "platform": platform,
+                }
+            return {"success": False, "error": "Rasm topilmadi"}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
@@ -147,4 +176,4 @@ def download_audio(url: str, output_dir: str = "downloads") -> dict:
                 "platform": platform,
             }
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": str(e)}   
