@@ -12,7 +12,7 @@ from telegram.ext import (
     filters,
 )
 from dotenv import load_dotenv
-from downloader import download_video, download_audio, detect_platform, search_youtube_music
+from downloader import download_video, download_audio, download_image, detect_platform, search_youtube_music
 
 load_dotenv()
 
@@ -38,12 +38,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = (
         "👋 *Salom! Media Downloader Botga xush kelibsiz!*\n\n"
         "Men quyidagilarni yuklab beraman:\n\n"
-        "▶️ YouTube — havola yoki qo'shiq nomi\n"
-        "📸 Instagram\n"
-        "👤 Facebook\n"
-        "📌 Pinterest\n"
-        "🎵 TikTok\n"
-        "👻 Snapchat\n\n"
+        "▶️ YouTube — video\n"
+        "📸 Instagram — video, rasm, audio\n"
+        "👤 Facebook — video, rasm, audio\n"
+        "📌 Pinterest — video, rasm, audio\n"
+        "🎵 TikTok — video, rasm, audio\n"
+        "👻 Snapchat — video, rasm, audio\n\n"
         "📎 Havola yoki qo'shiq nomini yuboring!"
     )
     await update.message.reply_text(text, parse_mode="Markdown")
@@ -52,7 +52,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = (
         "📖 *Foydalanish yo'riqnomasi:*\n\n"
         "1️⃣ Havola yoki qo'shiq nomini yuboring\n"
-        "2️⃣ Video yoki Audio tanlang\n"
+        "2️⃣ Video, Rasm yoki Audio tanlang\n"
         "3️⃣ Fayl yuklanib, sizga yuboriladi\n\n"
         "⚠️ *Eslatma:* Katta fayllar biroz vaqt olishi mumkin."
     )
@@ -73,13 +73,22 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["url"] = url
         context.user_data["platform"] = platform
         platform_name = PLATFORM_EMOJI.get(platform, "🌐")
-        keyboard = [
-            [
-                InlineKeyboardButton("🎬 Video yukla", callback_data="download_video"),
-                InlineKeyboardButton("🎵 Audio yukla", callback_data="download_audio"),
-            ],
-            [InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel")],
-        ]
+
+        if platform == "youtube":
+            keyboard = [
+                [InlineKeyboardButton("🎬 Video yukla", callback_data="download_video")],
+                [InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel")],
+            ]
+        else:
+            keyboard = [
+                [
+                    InlineKeyboardButton("🎬 Video", callback_data="download_video"),
+                    InlineKeyboardButton("🖼 Rasm", callback_data="download_image"),
+                ],
+                [InlineKeyboardButton("🎵 Audio", callback_data="download_audio")],
+                [InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel")],
+            ]
+
         await update.message.reply_text(
             f"✅ Havola aniqlandi: *{platform_name}*\n\nNimani yuklamoqchisiz?",
             reply_markup=InlineKeyboardMarkup(keyboard),
@@ -118,10 +127,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data["url"] = song["url"]
             context.user_data["platform"] = "youtube"
             keyboard = [
-                [
-                    InlineKeyboardButton("🎬 Video yukla", callback_data="download_video"),
-                    InlineKeyboardButton("🎵 Audio yukla", callback_data="download_audio"),
-                ],
+                [InlineKeyboardButton("🎬 Video yukla", callback_data="download_video")],
                 [InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel")],
             ]
             await query.edit_message_text(
@@ -158,6 +164,23 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         video=video_file,
                         caption=f"🎬 {title}\n📌 {platform_name}",
                     )
+            os.remove(filepath)
+        else:
+            await query.message.reply_text(
+                f"❌ Xatolik yuz berdi:\n`{result['error']}`", parse_mode="Markdown"
+            )
+
+    elif query.data == "download_image":
+        await query.edit_message_text(f"⏳ *{platform_name}* dan rasm yuklanmoqda...", parse_mode="Markdown")
+        result = download_image(url)
+        if result["success"]:
+            filepath = result["filepath"]
+            title = result["title"]
+            with open(filepath, "rb") as image_file:
+                await query.message.reply_photo(
+                    photo=image_file,
+                    caption=f"🖼 {title}\n📌 {platform_name}",
+                )
             os.remove(filepath)
         else:
             await query.message.reply_text(
